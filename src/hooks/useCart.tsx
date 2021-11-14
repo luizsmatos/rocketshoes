@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { api } from '../services/api';
 import { Product, Stock } from '../types';
@@ -32,10 +32,20 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     return [];
   });
 
-  const saveCart = (newProducts: Product[]) => {
-    localStorage.setItem('@RocketShoes:cart', JSON.stringify(newProducts));
-    setCart(newProducts);
-  };
+  const prevCartRef = useRef<Product[]>(cart);
+
+  useEffect(() => {
+    prevCartRef.current = cart;
+  })
+
+  const cartPreviousValue = prevCartRef.current ?? cart;
+
+  useEffect(() => {
+    if(cartPreviousValue !== cart) {
+      localStorage.setItem('@RocketShoes:cart', JSON.stringify(cart));
+    }
+  }, [cart, cartPreviousValue])
+
 
   const addProduct = async (productId: number) => {
     try {
@@ -63,7 +73,6 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
         updatedCart.push(newProduct);
       }
       setCart(updatedCart);
-      saveCart(updatedCart);
     } catch (error) {
       toast.error('Erro na adição do produto');
     }
@@ -74,7 +83,6 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
       const productExists = cart.find((p) => p.id === productId);
       if (productExists) {
         const newCart = cart.filter((p) => p.id !== productId);
-        saveCart(newCart);
         setCart(newCart);
       } else {
         toast.error('Erro na remoção do produto');
@@ -89,16 +97,15 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     amount,
   }: UpdateProductAmount) => {
     try {
+      if (amount === 0) return;
       const { data: stock } = await api.get<Stock>(`/stock/${productId}`);
       const updateProduct = cart.map((p) =>
         p.id === productId ? { ...p, amount } : p
       );
 
-      if (amount === 0) return;
       if (amount > stock.amount) {
         toast.error('Quantidade solicitada fora de estoque');
       } else {
-        saveCart(updateProduct);
         setCart(updateProduct);
       }
     } catch (error) {
