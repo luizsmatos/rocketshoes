@@ -39,24 +39,31 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
 
   const addProduct = async (productId: number) => {
     try {
-      const { data } = await api.get<Product>(`/products/${productId}`);
       const { data: stock } = await api.get<Stock>(`/stock/${productId}`);
-
-      const productExists = cart.find((p) => p.id === productId);
-
-      if (productExists) {
-        if (productExists.amount === stock.amount) {
-          toast.error('Quantidade solicitada fora de estoque');
-        } else {
-          const incrementedProduct = cart.map((p) =>
-            p.id === productId ? { ...p, amount: p.amount + 1 } : p
-          );
-          saveCart(incrementedProduct);
-        }
-      } else {
-        const newProduct = [...cart, { ...data, amount: 1 }];
-        saveCart(newProduct);
+      
+      const updatedCart = [...cart];
+      const productExists = updatedCart.find((p) => p.id === productId);
+      const currentAmount = productExists ? productExists.amount : 0;
+      const amount = currentAmount + 1;
+      
+      if (amount > stock.amount) {
+        toast.error('Quantidade solicitada fora de estoque');
+        return;
       }
+      
+      if (productExists) {
+        productExists.amount = amount;
+      } else {
+        const { data } = await api.get<Product>(`/products/${productId}`);
+        
+        const newProduct = {
+          ...data,
+          amount: 1,
+        };
+        updatedCart.push(newProduct);
+      }
+      setCart(updatedCart);
+      saveCart(updatedCart);
     } catch (error) {
       toast.error('Erro na adição do produto');
     }
@@ -83,9 +90,10 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
   }: UpdateProductAmount) => {
     try {
       const { data: stock } = await api.get<Stock>(`/stock/${productId}`);
-      const updateProduct = cart
-        .map((p) => p.id === productId ? { ...p, amount } : p );
-      
+      const updateProduct = cart.map((p) =>
+        p.id === productId ? { ...p, amount } : p
+      );
+
       if (amount === 0) return;
       if (amount > stock.amount) {
         toast.error('Quantidade solicitada fora de estoque');
