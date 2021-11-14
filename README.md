@@ -1,5 +1,5 @@
 <h1 align="center">
-    <img alt="RocketShoes" src="" width="500px"/>
+    <img alt="RocketShoes" src="./layout.png" width="500px"/>
 </h1>
 
 <br>
